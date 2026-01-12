@@ -50,9 +50,9 @@ const BLOCK_PADDING = 10;
 const BLOCK_COLORS = ['#ff006e', '#fb5607', '#ffbe0b', '#8338ec', '#3a86ff'];
 
 const BONUS_TYPES = [
-  { type: 'speed' as const, icon: '⚡', color: '#ffbe0b', chance: 0.15 },
-  { type: 'wide' as const, icon: '⬌', color: '#3a86ff', chance: 0.15 },
-  { type: 'multi' as const, icon: '●●●', color: '#ff00ff', chance: 0.1 },
+  { type: 'speed' as const, icon: '⚡', color: '#ffbe0b', chance: 0.1 },
+  { type: 'wide' as const, icon: '⬌', color: '#3a86ff', chance: 0.1 },
+  { type: 'multi' as const, icon: '●●●', color: '#ff00ff', chance: 0.05 },
 ];
 
 const Index = () => {
