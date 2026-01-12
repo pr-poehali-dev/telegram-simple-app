@@ -41,10 +41,12 @@ const BLOCK_COLORS = ['#ff006e', '#fb5607', '#ffbe0b', '#8338ec', '#3a86ff'];
 
 const Index = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [gameState, setGameState] = useState<'menu' | 'playing' | 'paused' | 'gameover'>('menu');
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(3);
   const [level, setLevel] = useState(1);
+  const [canvasSize, setCanvasSize] = useState({ width: CANVAS_WIDTH, height: CANVAS_HEIGHT });
   const [highScore, setHighScore] = useState(() => {
     const saved = localStorage.getItem('arkanoid-highscore');
     return saved ? parseInt(saved) : 0;
@@ -67,6 +69,32 @@ const Index = () => {
 
   const blocksRef = useRef<Block[]>([]);
   const animationFrameRef = useRef<number>();
+
+  useEffect(() => {
+    const updateCanvasSize = () => {
+      const container = containerRef.current;
+      if (!container) return;
+
+      const containerWidth = container.clientWidth;
+      const containerHeight = window.innerHeight - 200;
+
+      const scale = Math.min(containerWidth / CANVAS_WIDTH, containerHeight / CANVAS_HEIGHT, 1);
+      
+      setCanvasSize({
+        width: CANVAS_WIDTH * scale,
+        height: CANVAS_HEIGHT * scale,
+      });
+    };
+
+    updateCanvasSize();
+    window.addEventListener('resize', updateCanvasSize);
+    window.addEventListener('orientationchange', updateCanvasSize);
+
+    return () => {
+      window.removeEventListener('resize', updateCanvasSize);
+      window.removeEventListener('orientationchange', updateCanvasSize);
+    };
+  }, []);
 
   const createBlocks = useCallback((levelNum: number) => {
     const blocks: Block[] = [];
@@ -139,7 +167,17 @@ const Index = () => {
       paddleRef.current.x = Math.max(0, Math.min(CANVAS_WIDTH - PADDLE_WIDTH, touchX - PADDLE_WIDTH / 2));
     };
 
+    const handleTouchStart = (e: TouchEvent) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const touch = e.touches[0];
+      const touchX = (touch.clientX - rect.left) * scaleX;
+      paddleRef.current.x = Math.max(0, Math.min(CANVAS_WIDTH - PADDLE_WIDTH, touchX - PADDLE_WIDTH / 2));
+    };
+
     canvas.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
     canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
 
     const gameLoop = () => {
@@ -241,18 +279,19 @@ const Index = () => {
         cancelAnimationFrame(animationFrameRef.current);
       }
       canvas.removeEventListener('mousemove', handleMouseMove);
+      canvas.removeEventListener('touchstart', handleTouchStart);
       canvas.removeEventListener('touchmove', handleTouchMove);
     };
   }, [gameState, lives, score, level, highScore, nextLevel, resetBall]);
 
   return (
-    <div className="min-h-screen bg-[#1a1a2e] flex flex-col items-center justify-center p-4 font-['Press_Start_2P']">
-      <div className="w-full max-w-4xl">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-6xl mb-4 text-[#00ff41] drop-shadow-[0_0_10px_#00ff41]">
+    <div className="min-h-screen bg-[#1a1a2e] flex flex-col items-center justify-center p-2 sm:p-4 font-['Press_Start_2P'] overflow-hidden">
+      <div className="w-full max-w-4xl" ref={containerRef}>
+        <div className="text-center mb-4 sm:mb-8">
+          <h1 className="text-2xl sm:text-4xl md:text-6xl mb-2 sm:mb-4 text-[#00ff41] drop-shadow-[0_0_10px_#00ff41]">
             ARKANOID
           </h1>
-          <div className="flex justify-center gap-8 text-sm md:text-base flex-wrap">
+          <div className="flex justify-center gap-2 sm:gap-4 md:gap-8 text-[8px] sm:text-xs md:text-sm flex-wrap">
             <div className="text-[#00ff41]">
               SCORE: <span className="text-[#ff00ff]">{score}</span>
             </div>
@@ -268,28 +307,32 @@ const Index = () => {
           </div>
         </div>
 
-        <div className="relative border-4 border-[#00ff41] shadow-[0_0_20px_#00ff41] mx-auto" style={{ width: 'fit-content' }}>
+        <div className="relative border-2 sm:border-4 border-[#00ff41] shadow-[0_0_20px_#00ff41] mx-auto touch-none" style={{ width: 'fit-content' }}>
           <canvas
             ref={canvasRef}
             width={CANVAS_WIDTH}
             height={CANVAS_HEIGHT}
-            className="block max-w-full h-auto"
-            style={{ imageRendering: 'pixelated' }}
+            className="block"
+            style={{ 
+              imageRendering: 'pixelated',
+              width: `${canvasSize.width}px`,
+              height: `${canvasSize.height}px`,
+            }}
           />
           
           {gameState === 'menu' && (
             <div className="absolute inset-0 bg-[#1a1a2e]/95 flex flex-col items-center justify-center gap-8">
               <div className="text-center px-4">
-                <p className="text-[#00ff41] text-xs md:text-sm mb-4">
+                <p className="text-[#00ff41] text-[8px] sm:text-xs md:text-sm mb-2 sm:mb-4">
                   BREAK ALL BLOCKS
                 </p>
-                <p className="text-[#ff00ff] text-xs md:text-sm">
-                  USE MOUSE OR TOUCH
+                <p className="text-[#ff00ff] text-[8px] sm:text-xs md:text-sm">
+                  MOVE TO CONTROL
                 </p>
               </div>
               <Button
                 onClick={startNewGame}
-                className="bg-[#00ff41] hover:bg-[#00ff41]/80 text-[#1a1a2e] text-sm md:text-base px-8 py-6 border-4 border-[#ff00ff] shadow-[0_0_20px_#ff00ff]"
+                className="bg-[#00ff41] hover:bg-[#00ff41]/80 text-[#1a1a2e] text-xs sm:text-sm md:text-base px-4 sm:px-6 md:px-8 py-3 sm:py-4 md:py-6 border-2 sm:border-4 border-[#ff00ff] shadow-[0_0_20px_#ff00ff]"
               >
                 START GAME
               </Button>
@@ -298,10 +341,10 @@ const Index = () => {
 
           {gameState === 'paused' && (
             <div className="absolute inset-0 bg-[#1a1a2e]/95 flex flex-col items-center justify-center gap-8">
-              <p className="text-[#00ff41] text-2xl md:text-4xl">PAUSED</p>
+              <p className="text-[#00ff41] text-xl sm:text-2xl md:text-4xl">PAUSED</p>
               <Button
                 onClick={() => setGameState('playing')}
-                className="bg-[#00ff41] hover:bg-[#00ff41]/80 text-[#1a1a2e] text-sm md:text-base px-8 py-6 border-4 border-[#ff00ff]"
+                className="bg-[#00ff41] hover:bg-[#00ff41]/80 text-[#1a1a2e] text-xs sm:text-sm md:text-base px-4 sm:px-6 md:px-8 py-3 sm:py-4 md:py-6 border-2 sm:border-4 border-[#ff00ff]"
               >
                 RESUME
               </Button>
@@ -310,22 +353,22 @@ const Index = () => {
 
           {gameState === 'gameover' && (
             <div className="absolute inset-0 bg-[#1a1a2e]/95 flex flex-col items-center justify-center gap-8">
-              <div className="text-center">
-                <p className="text-[#ff006e] text-2xl md:text-4xl mb-4">GAME OVER</p>
-                <p className="text-[#00ff41] text-sm md:text-base">
+              <div className="text-center px-4">
+                <p className="text-[#ff006e] text-xl sm:text-2xl md:text-4xl mb-2 sm:mb-4">GAME OVER</p>
+                <p className="text-[#00ff41] text-[8px] sm:text-xs md:text-sm">
                   FINAL SCORE: <span className="text-[#ff00ff]">{score}</span>
                 </p>
               </div>
-              <div className="flex gap-4 flex-wrap justify-center">
+              <div className="flex gap-2 sm:gap-4 flex-wrap justify-center">
                 <Button
                   onClick={startNewGame}
-                  className="bg-[#00ff41] hover:bg-[#00ff41]/80 text-[#1a1a2e] text-sm md:text-base px-6 py-4 border-4 border-[#ff00ff]"
+                  className="bg-[#00ff41] hover:bg-[#00ff41]/80 text-[#1a1a2e] text-xs sm:text-sm md:text-base px-3 sm:px-4 md:px-6 py-2 sm:py-3 md:py-4 border-2 sm:border-4 border-[#ff00ff]"
                 >
                   RETRY
                 </Button>
                 <Button
                   onClick={() => setGameState('menu')}
-                  className="bg-[#ff00ff] hover:bg-[#ff00ff]/80 text-[#1a1a2e] text-sm md:text-base px-6 py-4 border-4 border-[#00ff41]"
+                  className="bg-[#ff00ff] hover:bg-[#ff00ff]/80 text-[#1a1a2e] text-xs sm:text-sm md:text-base px-3 sm:px-4 md:px-6 py-2 sm:py-3 md:py-4 border-2 sm:border-4 border-[#00ff41]"
                 >
                   MENU
                 </Button>
@@ -335,14 +378,14 @@ const Index = () => {
         </div>
 
         {gameState === 'playing' && (
-          <div className="text-center mt-8">
+          <div className="text-center mt-4 sm:mt-8">
             <Button
               onClick={() => setGameState('paused')}
               variant="outline"
               size="sm"
-              className="text-[#00ff41] border-[#00ff41] hover:bg-[#00ff41] hover:text-[#1a1a2e]"
+              className="text-[#00ff41] border-[#00ff41] hover:bg-[#00ff41] hover:text-[#1a1a2e] text-xs sm:text-sm"
             >
-              <Icon name="Pause" size={16} />
+              <Icon name="Pause" size={14} className="sm:w-4 sm:h-4" />
             </Button>
           </div>
         )}
