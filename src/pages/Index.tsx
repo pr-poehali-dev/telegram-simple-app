@@ -71,8 +71,8 @@ const Index = () => {
   const ballsRef = useRef<Ball[]>([{
     x: CANVAS_WIDTH / 2,
     y: CANVAS_HEIGHT - 150,
-    dx: 4,
-    dy: -4,
+    dx: 0,
+    dy: 0,
     radius: BALL_RADIUS,
     id: 0,
   }]);
@@ -92,6 +92,7 @@ const Index = () => {
   const speedBoostTimer = useRef<NodeJS.Timeout | null>(null);
   const wideBoostRef = useRef(false);
   const wideBoostTimer = useRef<NodeJS.Timeout | null>(null);
+  const ballLaunchedRef = useRef(false);
 
   useEffect(() => {
     const updateCanvasSize = () => {
@@ -143,12 +144,13 @@ const Index = () => {
     ballsRef.current = [{
       x: CANVAS_WIDTH / 2,
       y: CANVAS_HEIGHT - 150,
-      dx: 4 + level * 0.5,
-      dy: -4 - level * 0.5,
+      dx: 0,
+      dy: 0,
       radius: BALL_RADIUS,
       id: 0,
     }];
     ballIdCounter.current = 1;
+    ballLaunchedRef.current = false;
   }, [level]);
 
   const clearBonusTimers = useCallback(() => {
@@ -158,6 +160,16 @@ const Index = () => {
     wideBoostRef.current = false;
     paddleRef.current.width = PADDLE_WIDTH;
   }, []);
+
+  const launchBall = useCallback(() => {
+    if (!ballLaunchedRef.current && ballsRef.current.length > 0) {
+      ballLaunchedRef.current = true;
+      ballsRef.current.forEach(ball => {
+        ball.dx = 4 + level * 0.5;
+        ball.dy = -4 - level * 0.5;
+      });
+    }
+  }, [level]);
 
   const startNewGame = useCallback(() => {
     setScore(0);
@@ -261,6 +273,7 @@ const Index = () => {
 
     const handleTouchStart = (e: TouchEvent) => {
       e.preventDefault();
+      launchBall();
       const rect = canvas.getBoundingClientRect();
       const scaleX = canvas.width / rect.width;
       const touch = e.touches[0];
@@ -269,7 +282,12 @@ const Index = () => {
       paddle.x = Math.max(0, Math.min(CANVAS_WIDTH - paddle.width, touchX - paddle.width / 2));
     };
 
+    const handleClick = () => {
+      launchBall();
+    };
+
     canvas.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('click', handleClick);
     canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
     canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
 
@@ -280,8 +298,13 @@ const Index = () => {
       const paddle = paddleRef.current;
 
       ballsRef.current.forEach((ball, ballIndex) => {
-        ball.x += ball.dx;
-        ball.y += ball.dy;
+        if (!ballLaunchedRef.current) {
+          ball.x = paddle.x + paddle.width / 2;
+          ball.y = paddle.y - ball.radius - 5;
+        } else {
+          ball.x += ball.dx;
+          ball.y += ball.dy;
+        }
 
         if (ball.x + ball.radius > CANVAS_WIDTH || ball.x - ball.radius < 0) {
           ball.dx = -ball.dx;
@@ -436,6 +459,7 @@ const Index = () => {
         cancelAnimationFrame(animationFrameRef.current);
       }
       canvas.removeEventListener('mousemove', handleMouseMove);
+      canvas.removeEventListener('click', handleClick);
       canvas.removeEventListener('touchstart', handleTouchStart);
       canvas.removeEventListener('touchmove', handleTouchMove);
     };
@@ -484,7 +508,7 @@ const Index = () => {
                   BREAK ALL BLOCKS
                 </p>
                 <p className="text-[#ff00ff] text-[8px] sm:text-xs md:text-sm mb-2">
-                  MOVE TO CONTROL
+                  CLICK TO LAUNCH
                 </p>
                 <div className="text-[8px] sm:text-[10px] text-[#ffbe0b] mt-4 space-y-1">
                   <p>⚡ SPEED BOOST</p>
